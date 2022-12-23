@@ -1,5 +1,7 @@
+require("dotenv").config();
 const express = require("express");
 const multer = require("multer");
+const { awsS3FileUpload } = require("./aws_s3_service");
 const uuid = require("uuid").v4;
 const app = express();
 
@@ -30,24 +32,33 @@ const fileFilter = (req, file, cb) => {
 }
 
 // obtain custom file name when uploading | the uploded file will be saved into the local storage. (your hard disk)
-const storage = multer.diskStorage({
-    destination: (req, file, callback) => {
-        callback(null, "file_uploads/");
-    },
-    filename: (req, file, callback) => {
-        const { originalname } = file;
-        callback(null, `${uuid()}-${originalname}`);
-    }
-})
+// const storage = multer.diskStorage({
+//     destination: (req, file, callback) => {
+//         callback(null, "file_uploads/");
+//     },
+//     filename: (req, file, callback) => {
+//         const { originalname } = file;
+//         callback(null, `${uuid()}-${originalname}`);
+//     }
+// })
+
+// using memorystorage
+const storage = multer.memoryStorage();
+
 
 /*POST request - multiple files upload | maximun number of files allowed is 4 |
                     obtain cutome file name and filter out the specified file type and limits the file size */
 const fileupload = multer({storage, fileFilter, limits: {fileSize: 20000000, files: 4}});
 app.post("/userdocumentupload", fileupload.array("file"), (req, res) => {
-    setTimeout(() => {
-        console.log("file uploaded successfully!")
-        return res.status(200).json({result: true, message: "files uploaded!"})
-    }, 3000);
+    setTimeout(async ()  => {
+        try {
+            const finalresults = await awsS3FileUpload(req.files);
+            console.log("file uploaded successfully!")
+            return res.status(200).json({result: true, message: "files uploaded!", finalresults})      
+        } catch (error) {
+           console.log("File upload failed: ", error) 
+        }
+    }, 6000);     
 });
 
 /*POST request - multiple files upload | maximun number of files allowed is 4 |
